@@ -32,7 +32,7 @@ import { experimentalAddHardhatNetworkMessageTraceHook } from "hardhat/config";
 
         const MerkleAirdrop = await Merkle.deploy(token,merkleRoot);
 
-        return {token,owner,otherAccount, MerkleAirdrop}; 
+        return {token,owner,otherAccount, MerkleAirdrop , merkleRoot}; 
         
     }
 
@@ -50,8 +50,20 @@ import { experimentalAddHardhatNetworkMessageTraceHook } from "hardhat/config";
 
             expect ( (token)).to.equal( await MerkleAirdrop.token());
         })
+
+        it("Should have a correct merkle root", async function (){
+
+            const {merkleRoot, MerkleAirdrop} = await loadFixture(deployMerkleAirdrop);
+
+            expect (await MerkleAirdrop.merkleRoot()).to.equal(merkleRoot);
+        })
         
     });
+
+
+    describe("Claim Airdrop", async function() {
+        
+    })
 
 
   })
