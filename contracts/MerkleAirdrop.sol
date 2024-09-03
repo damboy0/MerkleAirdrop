@@ -5,21 +5,27 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+
+error InvalidProof();
+error NoTokensToWithdraw();
+
 contract MerkleAirdrop is Ownable {
     IERC20 public token;
     bytes32 public merkleRoot;
     mapping(address => bool) public hasClaimed;
 
-    event AirdropClaimed(address indexed claimant, uint256 amount);
+    event AirdropClaimed(address indexed user, uint256 amount);
 
-    // Constructor with an explicit call to the Ownable constructor, though unnecessary in most cases
+    
     constructor(address _tokenAddress, bytes32 _merkleRoot) Ownable(msg.sender) {
         token = IERC20(_tokenAddress);
         merkleRoot = _merkleRoot;
     }
 
     function claimAirdrop(uint256 amount, bytes32[] calldata merkleProof) external {
-        require(!hasClaimed[msg.sender], "Airdrop already claimed.");
+        if (!hasClaimed[msg.sender]){
+            revert InvalidProof();
+        }
         
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
         
@@ -39,7 +45,10 @@ contract MerkleAirdrop is Ownable {
     // Function to withdraw remaining tokens after the airdrop
     function withdrawTokens() external onlyOwner {
         uint256 balance = token.balanceOf(address(this));
-        require(balance > 0, "No tokens to withdraw.");
+        
+        if(balance == 0){
+            revert NoTokensToWithdraw();
+        }
         require(token.transfer(owner(), balance), "Token transfer failed.");
     }
 }
