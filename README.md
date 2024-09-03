@@ -60,6 +60,16 @@ Replace network-name with the target Ethereum network (e.g., mainnet, sepolia, l
 
 ## Running the Merkle Script
 
+1. **Generate the Merkle Tree and Proofs:**
+
+Run the script to generate the Merkle root and proofs:
+ 
+```
+npx ts-node scripts/merkle.ts
+```
+
+This script will output the Merkle root and a list of proofs for each address.
+
 
 
 ## Assumptions and Limitations
