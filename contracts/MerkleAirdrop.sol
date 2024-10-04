@@ -23,7 +23,7 @@ contract MerkleAirdrop is Ownable {
     }
 
     function claimAirdrop(uint256 amount, bytes32[] calldata merkleProof) external {
-        if (!hasClaimed[msg.sender]){
+        if (hasClaimed[msg.sender]){
             revert InvalidProof();
         }
         

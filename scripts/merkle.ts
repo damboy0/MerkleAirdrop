@@ -6,7 +6,7 @@ import keccak256 from 'keccak256';
 // Define the type for CSV data
 interface CsvRow {
   address: string;
-  amount: string; // use string to maintain consistency as CSV data is read as strings
+  amount: string; // keep string to preserve CSV format
 }
 
 // Step 1: Read the CSV file and parse addresses and amounts
@@ -18,7 +18,7 @@ function readCSV(filePath: string): Promise<CsvRow[]> {
       .on('data', (row: CsvRow) => {
         const address = row.address?.trim();
         const amount = row.amount?.trim();
-        if (address && amount) { // Ensure both address and amount are present
+        if (address && amount) {
           data.push({ address, amount });
         } else {
           console.warn('Skipping invalid row:', row);
@@ -38,7 +38,7 @@ function hashEntry(address: string, amount: string): Buffer {
   return Buffer.from(
     keccak256(Buffer.concat([
       Buffer.from(address.slice(2), 'hex'),
-      Buffer.from(amount.padStart(64, '0'), 'hex')
+      Buffer.from(BigInt(amount).toString(16).padStart(64, '0'), 'hex')
     ])).toString('hex'), 'hex'
   );
 }
@@ -46,32 +46,20 @@ function hashEntry(address: string, amount: string): Buffer {
 // Function to generate Merkle tree and get Merkle proof for a specific address and amount
 async function generateMerkleTree(filePath: string, addressToProof: string, amountToProof: string): Promise<void> {
   try {
+    const data: CsvRow[] = await readCSV(filePath); // Read the CSV
     
-    const data: CsvRow[] = await readCSV(filePath); //read the csv
+    const leaves = data.map(row => hashEntry(row.address.toLowerCase(), row.amount)); // Hash each entry
 
-    
-    const leaves = data.map(row => {
-      if (!row.address || !row.amount) {
-        throw new Error(`Invalid CSV data: ${JSON.stringify(row)}`);
-      }
+    const merkleTree = new MerkleTree(leaves, keccak256, { sortPairs: true }); // Create Merkle Tree
 
-      return hashEntry(row.address.toLowerCase(), row.amount);
-    });
+    const merkleRoot: string = merkleTree.getRoot().toString('hex'); // Get Merkle Root
 
-    
-    const merkleTree = new MerkleTree(leaves, keccak256, { sortPairs: true }); //Create a Merkle tree using the hashed entries
-
-    
-    const merkleRoot: string = merkleTree.getRoot().toString('hex'); //Get the Merkle root
-
-    
     console.log('Merkle Root:', merkleRoot);
 
     // Generate Merkle proof for the specific address and amount
     const leafToProof = hashEntry(addressToProof.toLowerCase(), amountToProof);
     const proof = merkleTree.getHexProof(leafToProof);
 
-    // Output the Merkle proof
     console.log(`Merkle Proof for ${addressToProof} with amount ${amountToProof}:`, proof);
   } catch (error) {
     console.error('Error generating Merkle tree or proof:', error);
@@ -80,10 +68,3 @@ async function generateMerkleTree(filePath: string, addressToProof: string, amou
 
 // Call the function with the path to your CSV file and the address/amount to generate a proof
 generateMerkleTree('list/address.csv', '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2', '100');
-
-
-
-// Merkle Proof for 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2 with amount 100: [
-//     '0x8fe1a810b793fec614caec0d7af611596b4815d610456c35c5f6513efb03165d',
-//     '0x37d22bce811474fe6c917e10a81e8b64c9d038f00d9a793dd8c02d161401d337'
-//   ]

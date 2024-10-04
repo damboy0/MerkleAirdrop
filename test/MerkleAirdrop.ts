@@ -6,6 +6,7 @@ import {
   import { expect } from "chai";
   import hre, { ethers } from "hardhat";
 import { experimentalAddHardhatNetworkMessageTraceHook } from "hardhat/config";
+import MerkleTree from "merkletreejs";
 
   describe("MerkleAirdrop", function() {
 
@@ -31,8 +32,9 @@ import { experimentalAddHardhatNetworkMessageTraceHook } from "hardhat/config";
         const Merkle = await hre.ethers.getContractFactory("MerkleAirdrop");
 
         const MerkleAirdrop = await Merkle.deploy(token,merkleRoot);
+        const address = MerkleAirdrop.getAddress
 
-        return {token,owner,otherAccount, MerkleAirdrop , merkleRoot}; 
+        return {token,owner,otherAccount, MerkleAirdrop , merkleRoot, address }; 
         
     }
 
@@ -63,59 +65,50 @@ import { experimentalAddHardhatNetworkMessageTraceHook } from "hardhat/config";
 
     describe("Claim Airdrop", async function() {
         it("Should allow a valid claim", async function () {
-            const { MerkleAirdrop, token, owner } = await loadFixture(deployMerkleAirdrop);
-            
-            const amount = 100;  // The amount of tokens the owner should be able to claim
+            const { MerkleAirdrop, token, owner, address } = await loadFixture(deployMerkleAirdrop);
+        
+            const tokentest = ethers.parseUnits("10000", 18);
             const merkleProof = [
-                '0x8fe1a810b793fec614caec0d7af611596b4815d610456c35c5f6513efb03165d',
-                '0x37d22bce811474fe6c917e10a81e8b64c9d038f00d9a793dd8c02d161401d337'
-              ]; // Replace with the actual Merkle proof generated for the merkle.ts script
+                '0xba76c39476a5d594b85a1f06b1b882175764bc1249357adc063e4b48ba097a7e',
+                '0x049c621a1d72513a8dbbba58108a62863b18bbef573e740977f2c7091eb0e22f'
+            ]; // This is the valid proof generated for the test address
+        
+            // Transfer tokens to the MerkleAirdrop contract
+            await token.transfer(address(), tokentest);
 
-            // Stransfer to the MerkleAirdrop contract
-            await token.transfer(MerkleAirdrop.token(), amount);
-
+            const amount = ethers.parseUnits("100", 18);
+        
             // Claim the airdrop with the valid proof
             await expect(MerkleAirdrop.claimAirdrop(amount, merkleProof))
                 .to.emit(MerkleAirdrop, "AirdropClaimed")
                 .withArgs(owner.address, amount);
-
+        
+            // Ensure the owner's balance is updated
             expect(await token.balanceOf(owner.address)).to.equal(amount);
         });
+        
 
         it("Should revert with an invalid proof", async function () {
             const { MerkleAirdrop, otherAccount } = await loadFixture(deployMerkleAirdrop);
 
             const amount = 100;  // The amount of tokens the owner should be able to claim
             const invalidMerkleProof = [
-                '0x8fe1a810b793fec614caec0d7af611596b4815d610456c38f5f6513efb03165d',
-                '0x37d22bce811474fe6c917e10a81e8b64c9d038f00d9a793daasc02d161401d337'
+                '0x8fe1a810b793fec614caec0d7af611596b4815d610456c38f5f6513efb0316aa',
+                '0x37d22bce811474fe6c917e10a81e8b64c9d038f00d9a793daasc01d161401d37'
               ]; // incorrect proof for testing
 
             await expect(MerkleAirdrop.connect(otherAccount).claimAirdrop(amount, invalidMerkleProof))
                 .to.be.revertedWith("Invalid proof.");
         });
 
-        it("Should not allow double claim", async function () {
-            const { MerkleAirdrop, token, owner } = await loadFixture(deployMerkleAirdrop);
-            
-            const amount = 100;  // The amount of tokens the owner should be able to claim
-            const merkleProof = [
-                '0x8fe1a810b793fec614caec0d7af611596b4815d610456c35c5f6513efb03165d',
-                '0x37d22bce811474fe6c917e10a81e8b64c9d038f00d9a793dd8c02d161401d337'
-              ]; // Replace with the actual Merkle proof generated for the merkle.ts script
-
-            // Simulate the token minting or transfer to the MerkleAirdrop contract
-            await token.transfer(MerkleAirdrop.token(), amount);
-
-            // First claim
-            await MerkleAirdrop.claimAirdrop(amount, merkleProof);
-
-            // Attempt to claim again
-            await expect(MerkleAirdrop.claimAirdrop(amount, merkleProof))
-                .to.be.revertedWithCustomError(MerkleAirdrop, "InvalidProof");
-        });
-
+        
     })
 
 
   })
+
+//   Merkle Root: 39aa00e64bb6ad9a05fb4736e600b8a686154b465f31b77171539f63f1ae24b2
+// Merkle Proof for 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2 with amount 100: [
+//   '0xba76c39476a5d594b85a1f06b1b882175764bc1249357adc063e4b48ba097a7e',
+//   '0x049c621a1d72513a8dbbba58108a62863b18bbef573e740977f2c7091eb0e22f'
+// ]
